@@ -13,7 +13,7 @@ from unidecode import unidecode  # dealing with special chars for search
 # CONFIG
 # ============================================================
 
-EXCEL_FILE = "books_test.xlsx"
+EXCEL_FILE = "../books/books_test.xlsx"  
 
 IGNORE_WORDS = {
     "by", "By", "Edited", "edited", "editor", "Editor", "editors", "Editors",
@@ -26,8 +26,6 @@ IGNORE_WORDS = {
 # WAIT HELPERS — explicit waits, no assumptions about timing
 # ============================================================
 
-def echo():
-    print("Can you see this?")
 
 
 def wait_for_detail_panel(page):
@@ -409,29 +407,12 @@ def count_holdings(page, title, author, no_author_mode):
 
 
 
-
-
-## If there is no drop down, stop
-## 1283 - The space between intials
-## 
-
-
-
-# ============================================================
-# MAIN
-# ============================================================
-# ============================================================
-# MAIN
-# ============================================================
-# 1611
-
-## 1
 def main():
     df = pd.read_excel(EXCEL_FILE)
     df["OL"] = df["OL"].astype("object")
 
-    start_row = 1842
-    num_books = 1
+    start_row = 1200
+    num_books = 3
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
@@ -580,3 +561,6 @@ def main():
 
         input("\nDone. Press ENTER to close")
         browser.close()
+        
+if __name__ == "__main__":
+    main()

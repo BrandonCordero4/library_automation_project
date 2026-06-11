@@ -6,14 +6,13 @@ from urllib.parse import quote
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
 
-from unidecode import unidecode  # dealing with special chars for search
-
+from unidecode import unidecode
 
 # ============================================================
 # CONFIG
 # ============================================================
 
-EXCEL_FILE = "books_test.xlsx"
+EXCEL_FILE = "../books/books_test.xlsx"
 
 IGNORE_WORDS = {
     "by", "By", "Edited", "edited", "editor", "Editor", "editors", "Editors",
@@ -21,16 +20,11 @@ IGNORE_WORDS = {
     "Jr", "Sr", "II", "III", "IV", "Illus", "illus", "illustrated", "Illustrated"
 }
 
-
 # ============================================================
-# WAIT HELPERS — explicit waits, no assumptions about timing
+# WAIT HELPERS
 # ============================================================
-
-
-
 
 def wait_for_detail_panel(page):
-    """Block until the detail panel title element is present and non-empty."""
     print("  [WAIT] Waiting for detail panel to appear...")
     page.wait_for_selector(
         "//span[@data-details-label='title']",
@@ -50,7 +44,6 @@ def wait_for_detail_panel(page):
 
 
 def wait_for_schools(page):
-    """Wait a beat for the school list to settle, then count."""
     print("  [WAIT] Waiting for school list to settle...")
     page.wait_for_timeout(300)
     count = page.locator("p.inst-name").count()
@@ -59,22 +52,15 @@ def wait_for_schools(page):
 
 
 # ============================================================
-# HELPERS
+# HELPERS  (identical to mark9.py)
 # ============================================================
 
 def is_good_result(result):
-    """
-    Returns True for any result that is an expected, intentional outcome
-    and does NOT need to be flagged for manual review.
-    Only genuine surprises (ERROR, HOW? etc.) return False.
-    """
     if isinstance(result, (int, float)):
         return True
     if isinstance(result, str):
-        # Intentional non-count outcomes — all expected, nothing to review
         if result in {"NO AUTHOR", "N/A", "NO RESULTS", "BAD SEARCH"}:
             return True
-        # Valid count results: plain number, ebook-only, or count+ebook
         if result == "eb" or result.endswith("eb") or result.isdigit():
             return True
     return False
@@ -101,11 +87,6 @@ def save_to_sheet(row_number, value):
 
 
 def get_current_record_id(page):
-    """
-    Get the record ID of the currently displayed (full-view) record.
-    Primo keeps all search result cards in the DOM at once, so we
-    specifically target the one marked as FULL_VIEW.
-    """
     try:
         return page.locator(
             "div.list-item-primary-content.result-item-primary-content[id*='FULL_VIEW']"
@@ -136,12 +117,12 @@ def click_down_and_wait(page):
                 return el && el.getAttribute('data-recordid') !== prev_id;
             }""",
             arg=current_id,
-            timeout=5000  # reduced from 10000 — if it hasn't changed in 5s it's the last record
+            timeout=5000
         )
         new_id = get_current_record_id(page)
         print(f"  [CHEVRON] Record ID changed: {current_id} → {new_id}")
         return True
-    except Exception as e:
+    except Exception:
         print(f"  [CHEVRON] Record ID did not change — end of records.")
         return False
 
@@ -165,11 +146,6 @@ def make_result(book_count, contains_ebook):
 
 
 def has_ebook(page):
-    """
-    Check whether the currently displayed record has an ebook.
-    Scoped to the current record's ID to avoid picking up
-    availability spans from other records still in the DOM.
-    """
     try:
         record_id = get_current_record_id(page)
     except Exception:
@@ -180,8 +156,6 @@ def has_ebook(page):
         print("  [EBOOK] No record ID found")
         return False
 
-    # aria-labelledby starts with the record ID, so this is scoped
-    # to only the ebook button belonging to the current record
     found = page.locator(
         f"button[aria-labelledby^='{record_id}'] span.availability-status.not_restricted"
     ).count() > 0
@@ -357,7 +331,6 @@ def correct_book(page, title, author):
 
 
 def is_correct_record(page, title, author, no_author_mode):
-    """Wait for the detail panel to load, then check if it's the right book."""
     wait_for_detail_panel(page)
     if no_author_mode:
         web_title = get_web_title(page)
@@ -396,7 +369,6 @@ def count_holdings(page, title, author, no_author_mode):
         print("  " + "-" * 48)
         book_number += 1
 
-
         if not click_down_and_wait(page):
             result = make_result(book_count, contains_ebook)
             print("  [LOOP] Reached end of records.")
@@ -404,51 +376,29 @@ def count_holdings(page, title, author, no_author_mode):
             print(f"  [SAVE] Saved: '{result}'")
             break
 
-
-
-
-
-
-
-## If there is no drop down, stop
-## 1283 - The space between intials
-## 
-
-
-
 # ============================================================
-# MAIN
+# MAIN — cleanup: retry only ERROR and HOW? rows
 # ============================================================
-# ============================================================
-# MAIN
-# ============================================================
-# 1611
+def main():
+    df = pd.read_excel(EXCEL_FILE)
+    df["OL"] = df["OL"].astype("object")
 
-## 1
-df = pd.read_excel(EXCEL_FILE)
-df["OL"] = df["OL"].astype("object")
+    # Find every row that needs a retry
+    retry_rows = [
+        i for i, val in enumerate(df["OL"])
+        if isinstance(val, str) and (val == "ERROR" or val.startswith("HOW?"))
+    ]
 
-start_row = 1842
-num_books = 1
+    print(f"Found {len(retry_rows)} rows to retry: {[r + 2 for r in retry_rows]}")
 
-with sync_playwright() as p:
-    browser = p.chromium.launch(headless=False)
-    page    = browser.new_page()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        page    = browser.new_page()
 
-    for row_number in range(start_row, start_row + num_books):
-        print("\n\n\n" + "=" * 60)
-        print(f"ROW {row_number + 2}")
-        print("=" * 60)
-
-        for attempt in range(1, 3):
-            if attempt > 1:
-                print(f"\n  [RETRY] Attempt {attempt} — restarting browser...")
-                try:
-                    browser.close()
-                except Exception:
-                    pass
-                browser = p.chromium.launch(headless=False)
-                page    = browser.new_page()
+        for row_number in retry_rows:
+            print("\n\n\n" + "=" * 60)
+            print(f"ROW {row_number + 2}  (retrying '{df['OL'].iloc[row_number]}')")
+            print("=" * 60)
 
             try:
                 parts     = str(df["TITLE"].iloc[row_number]).strip().split("/", 1)
@@ -469,14 +419,14 @@ with sync_playwright() as p:
                 if not title or title.lower() == "nan":
                     print("[MAIN] Empty title → N/A")
                     save_to_sheet(row_number, "N/A")
-                    break  # not an error, just move on
+                    continue
 
                 no_author = raw_author == "NONE" or not author
 
                 if no_author and len(title.split()) < 4:
                     print("[MAIN] Title too short for no-author search → NO AUTHOR")
                     save_to_sheet(row_number, "NO AUTHOR")
-                    break  # not an error, just move on
+                    continue
 
                 encoded_title  = quote(search_title)
                 encoded_author = quote(author)
@@ -506,23 +456,13 @@ with sync_playwright() as p:
                 page.goto(url)
 
                 print("[MAIN] Waiting for results or no-records message...")
-                try:
-                    page.wait_for_function(
-                        """() =>
-                            document.querySelectorAll('mark').length > 0 ||
-                            document.body.innerText.includes('No records found')
-                        """,
-                        timeout=20000
-                    )
-                except Exception:
-                    print("[MAIN] Slow load — retrying wait for results...")
-                    page.wait_for_function(
-                        """() =>
-                            document.querySelectorAll('mark').length > 0 ||
-                            document.body.innerText.includes('No records found')
-                        """,
-                        timeout=20000
-                    )
+                page.wait_for_function(
+                    """() =>
+                        document.querySelectorAll('mark').length > 0 ||
+                        document.body.innerText.includes('No records found')
+                    """,
+                    timeout=10000
+                )
                 print("[MAIN] Page content ready.")
 
                 no_results = page.get_by_text("No records found").count()
@@ -535,7 +475,7 @@ with sync_playwright() as p:
                                 document.querySelectorAll('mark').length > 0 ||
                                 document.body.innerText.includes('No records found')
                             """,
-                            timeout=20000
+                            timeout=10000
                         )
                         no_results = page.get_by_text("No records found").count()
                     except Exception as e:
@@ -544,13 +484,13 @@ with sync_playwright() as p:
                 if no_results:
                     print("[MAIN] No results → NO RESULTS")
                     save_to_sheet(row_number, "NO RESULTS")
-                    break  # not an error, just move on
+                    continue
 
                 top_result = page.locator("mark")
                 if not top_result.count():
                     print("[MAIN] No mark element found → HOW? Check 'mark'")
                     save_to_sheet(row_number, "HOW? Check 'mark'")
-                    break  # not an error, just move on
+                    continue
 
                 print(f"[MAIN] Clicking top result...")
                 top_result.nth(0).click()
@@ -563,18 +503,19 @@ with sync_playwright() as p:
                     label = "NO AUTHOR" if no_author else "BAD SEARCH"
                     print(f"[MAIN] First result wrong → {label}")
                     save_to_sheet(row_number, label)
-                    break  # not an error, just move on
+                    continue
 
                 print("[MAIN] First result confirmed. Starting holdings count.")
                 count_holdings(page, title, author, no_author)
-                break  # success — move to next book
 
             except Exception as e:
-                print(f"[MAIN] ERROR (attempt {attempt}): {e}")
-                if attempt == 2:
-                    save_to_sheet(row_number, "ERROR")
-                    print(f"  [SAVE] Flagged for review: ROW {row_number + 2}")
-                # if attempt == 1, loop continues and browser restarts
+                print(f"[MAIN] ERROR: {e}")
+                save_to_sheet(row_number, "ERROR")
+                print(f"  [SAVE] Flagged for review: ROW {row_number + 2}")
 
-    input("\nDone. Press ENTER to close")
-    browser.close()
+        input("\nDone. Press ENTER to close")
+        
+        browser.close()
+
+if __name__ == "__main__":
+    main()
