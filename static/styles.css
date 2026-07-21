@@ -1,0 +1,110 @@
+/* General Page Styling */
+body {
+    background-color: #e8e2d0;
+    color: #2f3a2f;
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 40px 20px;
+}
+
+/* Main Container */
+
+.container {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+/* Heading */
+
+h1 {
+    text-align: center;
+    font-weight: normal;
+    font-size: 2.2rem;
+    margin-bottom: 10px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #b6ae98;
+    color: #223322;
+}
+
+.subtitle {
+    text-align: center;
+    color: #555;
+    margin-bottom: 35px;
+}
+
+/* Form Box  */
+
+form {
+    background-color: #f7f3e8;
+    border: 1px solid #b6ae98;
+    padding: 30px;
+}
+
+/* Fields */
+
+.field {
+    margin-bottom: 22px;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: bold;
+    color: #2f3a2f;
+}
+
+/* Inputs */
+
+input[type="number"],
+input[type="file"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    font-size: 1rem;
+    font-family: inherit;
+    background-color: #fffdf7;
+    border: 1px solid #a79f8b;
+}
+
+input:focus {
+    outline: none;
+    border-color: #566f56;
+}
+
+/* Button */
+
+button {
+    background-color: #556b55;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 1rem;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #435643;
+}
+
+button:disabled {
+    background-color: #888;
+    cursor: wait;
+}
+
+/* Small Screen Support */
+
+@media (max-width: 600px) {
+    body {
+        padding: 20px 10px;
+    }
+
+    form {
+        padding: 20px;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+    }
+}
