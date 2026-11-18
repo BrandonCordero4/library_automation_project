@@ -40,24 +40,10 @@ Start and end rows match the Excel row numbers, and row 1 is the header.
 | `ERROR` | The search failed twice |
 | `N/A` | Empty title |
 
-## Run it
-
-```bash
-git clone https://github.com/BrandonCordero4/library_automation_project.git
-cd library_automation_project
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-playwright install chromium
-python app.py
-```
-
-Then open `http://localhost:5000`.
-
 ## Stack
 
 Python, Flask, Playwright, openpyxl, pandas, plain HTML/CSS/JS, and Server-Sent Events for the progress bar.
 
 ## Scope
 
-This is a working prototype built around one librarian's weeding workflow and Denison's Primo catalog. It can misfire on messy titles or unusual formatting. The catalog URL lives in `scripts/first.py`.
+This is a working prototype built around one librarian's weeding workflow and Denison's Primo catalog. It can misfire on messy titles or unusual formatting.
